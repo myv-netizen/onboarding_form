@@ -132,6 +132,45 @@ body::after{content:"";position:fixed;inset:0;z-index:900;pointer-events:none;op
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
 
 
+
+/* ---------------- handoff steps on the last screen ---------------- */
+.steps{margin-top:1.9rem;display:flex;flex-direction:column;gap:.7rem}
+.stepcard{display:grid;grid-template-columns:38px 1fr;gap:.95rem;align-items:start;
+  background:#fff;border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--sh);padding:1.15rem 1.25rem;
+  transition:opacity .4s var(--ease),border-color .3s var(--ease),box-shadow .3s var(--ease)}
+.stepcard .num{width:38px;height:38px;border-radius:50%;background:var(--ember);color:#fff;
+  display:grid;place-items:center;font-family:"Archivo",sans-serif;font-weight:800;font-size:1.02rem;
+  transition:background-color .3s var(--ease),transform .4s var(--out)}
+.stepcard h3{font-size:1.08rem;letter-spacing:-.028em;margin-bottom:.25rem}
+.stepcard p{font-size:.94rem;color:var(--grey);line-height:1.5}
+.stepcard .acts{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1rem}
+.stepcard .btn,.stepcard .ghost{min-height:50px}
+.stepcard .acts .btn{flex:1 1 auto}
+@media (max-width:460px){
+  /* side by side, these squeeze the label into a circle */
+  .stepcard{grid-template-columns:32px 1fr;gap:.75rem;padding:1.05rem 1rem}
+  .stepcard .num{width:32px;height:32px;font-size:.92rem}
+  .stepcard .acts{flex-direction:column}
+  .stepcard .acts > *{width:100%}
+}
+.stepcard.locked{opacity:.5;box-shadow:none}
+.stepcard.locked .num{background:var(--grey-2)}
+.stepcard.locked .btn-ember{background:var(--grey-2);box-shadow:none;cursor:not-allowed}
+.stepcard.locked .btn-ember:hover{transform:none;background:var(--grey-2)}
+.stepcard.done .num{background:var(--green);transform:scale(1.04)}
+.stepcard.done{border-color:rgba(18,120,79,.35)}
+.gotit{display:flex;align-items:center;gap:.45rem;margin-top:.9rem;
+  font-size:.9rem;font-weight:600;color:var(--green)}
+.mailfall{margin-top:1rem;font-size:.9rem;color:var(--grey)}
+.mailfall b{color:var(--ink);font-weight:600;user-select:all;-webkit-user-select:all}
+.nextlist{margin-top:1.4rem;display:flex;flex-direction:column;gap:.55rem}
+.nextlist li{display:grid;grid-template-columns:20px 1fr;gap:.7rem;align-items:start;
+  font-size:.98rem;color:var(--grey);line-height:1.5}
+.nextlist svg{margin-top:.3rem;color:var(--ember)}
+.tickbig{width:54px;height:54px;border-radius:50%;background:var(--green);
+  display:grid;place-items:center;margin-bottom:1.4rem}
+
 /* ---------------- resume prompt ---------------- */
 .scrim{position:fixed;inset:0;z-index:120;background:rgba(15,18,22,.62);
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
@@ -1655,30 +1694,135 @@ function submit(){
 }
 function finish(p,how){ RESULT={p:p,how:how}; pos=SCREENS.length-1; draw(); }
 
+function bytesLabel(n){
+  if(n<1024) return n+" B";
+  if(n<1048576) return Math.round(n/1024)+" KB";
+  return (n/1048576).toFixed(1)+" MB";
+}
+function tickSvg(size,color){
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" aria-hidden="true">'+
+    '<path d="M4 12.5l5.5 5.5L20 7" stroke="'+color+'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
 function drawDone(){
   var how=RESULT?RESULT.how:"local", p=RESULT?RESULT.p:payload();
   wrap.innerHTML="";
-  var box=el("div"); box.style.paddingTop="6vh";
-  box.appendChild(el("span","eyebrow","Onboarding complete"));
+  var box=el("div"); box.style.paddingTop="4vh";
+
   if(how==="sent"){
+    var tk=el("div","tickbig"); tk.innerHTML=tickSvg(26,"#fff"); box.appendChild(tk);
     box.appendChild(el("h1","title","That's everything we need."));
-    box.appendChild(el("p","lede","We're on it. You'll hear from us before your onboarding call, and we'll come back to you on anything you skipped. If you've still got photos to send, use the upload link any time."));
-  } else {
-    box.appendChild(el("h1","title","One last tap and you're done."));
-    box.appendChild(el("p","lede","Your answers are saved on this device. Download the file below, email it to "+(CFG.contactEmail||"us")+", and we've got everything."));
-    var blob=new Blob([JSON.stringify(p,null,2)],{type:"application/json"});
-    var a=document.createElement("a");
-    a.className="btn btn-ember"; a.style.cssText="text-decoration:none;margin-top:1.6rem;flex:none;display:inline-flex;color:#fff";
-    a.download="arcos-onboarding-"+((p.business||"client").toLowerCase().replace(/[^a-z0-9]+/g,"-"))+".json";
-    a.href=URL.createObjectURL(blob); a.textContent="Download my answers";
-    box.appendChild(a);
+    box.appendChild(el("p","lede","We're on it. You'll hear from us before your onboarding call, and we'll come back to you on anything you skipped."));
+    var ul=document.createElement("ul"); ul.className="nextlist";
+    ["We read every answer and start on your site.","We'll email you about anything you skipped.","Still got photos? Use the upload link any time."]
+    .forEach(function(t){
+      var li=document.createElement("li");
+      li.innerHTML=tickSvg(16,"currentColor")+"<span>"+t+"</span>";
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
   }
+  else {
+    var json=JSON.stringify(p,null,2);
+    var blob=new Blob([json],{type:"application/json"});
+    var fname="arcos-onboarding-"+((p.business||"client").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""))+".json";
+    var to=CFG.contactEmail||"arno@arcos.cloud";
+    var got=null;   /* "download" or "copy", gates step two */
+
+    box.appendChild(el("span","eyebrow","Almost there"));
+    box.appendChild(el("h1","title","Two steps and you're done."));
+    box.appendChild(el("p","lede","Nothing is lost. Every answer is saved right here on your phone. We just need you to hand it over, because this form can't email us by itself."));
+
+    var steps=el("div","steps");
+
+    /* ---- step 1 ---- */
+    var c1=el("div","stepcard"), n1=el("div","num","1"), b1=el("div");
+    b1.appendChild(el("h3",null,"Save your answers"));
+    b1.appendChild(el("p",null,"One file, "+bytesLabel(blob.size)+
+      (p.files&&p.files.length?(", including your "+p.files.length+" photo"+(p.files.length===1?"":"s")):"")+"."));
+    var a1=el("div","acts");
+    var dl=el("button","btn btn-ember","Download the file"); dl.type="button";
+    var cp=el("button","ghost","Copy it instead"); cp.type="button";
+    a1.appendChild(dl); a1.appendChild(cp); b1.appendChild(a1);
+    var ok1=el("div","gotit"); ok1.style.display="none";
+    c1.appendChild(n1); c1.appendChild(b1); steps.appendChild(c1);
+
+    /* ---- step 2 ---- */
+    var c2=el("div","stepcard locked"), n2=el("div","num","2"), b2=el("div");
+    b2.appendChild(el("h3",null,"Send it to Arcos"));
+    var p2=el("p",null,"Opens your email app with everything filled in. Just attach the file and hit send.");
+    b2.appendChild(p2);
+    var a2=el("div","acts");
+    var mail=el("button","btn btn-ember","Open my email app"); mail.type="button"; mail.disabled=true;
+    a2.appendChild(mail); b2.appendChild(a2);
+    var fall=el("div","mailfall"); fall.style.display="none";
+    fall.innerHTML="Nothing opened? Email it to <b>"+to+"</b> yourself.";
+    b2.appendChild(fall);
+    c2.appendChild(n2); c2.appendChild(b2); steps.appendChild(c2);
+    box.appendChild(steps);
+
+    function unlock(method){
+      got=method;
+      c1.classList.add("done"); n1.innerHTML=tickSvg(20,"#fff");
+      if(!ok1.parentNode){
+        ok1.innerHTML=tickSvg(16,"currentColor")+"<span>"+
+          (method==="download" ? "Saved to your device" : "Copied to your clipboard")+"</span>";
+        ok1.style.display=""; b1.appendChild(ok1);
+      }
+      c2.classList.remove("locked"); mail.disabled=false;
+      p2.textContent = method==="download"
+        ? "Opens your email app with everything filled in. Just attach the file and hit send."
+        : "Opens your email app with everything filled in. Paste your answers into the message and hit send.";
+      say("Step two unlocked");
+    }
+
+    dl.addEventListener("click",function(){
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a");
+      a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },1500);
+      unlock("download");
+    });
+
+    cp.addEventListener("click",function(){
+      var done=function(){ cp.textContent="Copied"; setTimeout(function(){ cp.textContent="Copy it instead"; },1800); unlock("copy"); };
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(json).then(done,function(){ legacyCopy(); });
+      } else legacyCopy();
+      function legacyCopy(){
+        var ta=document.createElement("textarea");
+        ta.value=json; ta.style.cssText="position:fixed;left:-9999px;top:0";
+        document.body.appendChild(ta); ta.select();
+        try{ document.execCommand("copy"); done(); }catch(e){ cp.textContent="Copy failed"; }
+        document.body.removeChild(ta);
+      }
+    });
+
+    mail.addEventListener("click",function(){
+      if(!got) return;
+      var subject="Arcos onboarding: "+(p.business||p.owner||"my business");
+      var lines=["Hi Arcos,",""];
+      lines.push(got==="download"
+        ? "My onboarding answers are attached: "+fname
+        : "My onboarding answers are pasted below.");
+      lines.push("");
+      if(got==="copy") lines.push("[paste here]","");
+      if(p.owner) lines.push(p.owner);
+      if(p.answers&&p.answers["business.phone"]) lines.push(p.answers["business.phone"]);
+      var href="mailto:"+to+
+        "?subject="+encodeURIComponent(subject)+
+        "&body="+encodeURIComponent(lines.join("\n"));
+      window.location.href=href;
+      fall.style.display="";
+      c2.classList.add("done"); n2.innerHTML=tickSvg(20,"#fff");
+    });
+  }
+
   [].slice.call(box.children).forEach(function(n){ n.setAttribute("data-rv",""); });
   wrap.appendChild(box);
   stagger(box, 90, 130);
   chrome(); say("Onboarding complete"); window.scrollTo(0,0);
 }
-
 
 /* ------------------------------------------------------------ resume */
 /* Photos live in memory only, so a reloaded draft can point at files that
@@ -1735,8 +1879,8 @@ function askResume(dropped){
   if(where){
     var w=el("div","where");
     w.innerHTML="<b>Section "+where.n+" of "+where.of+", "+where.title+"</b>";
-    var sm=el("small",null,at?("Last saved "+agoText(at)):"Saved on this device");
-    w.appendChild(sm); box.appendChild(w);
+    w.appendChild(el("small",null,at?("Last saved "+agoText(at)):"Saved on this device"));
+    box.appendChild(w);
   }
   if(dropped){
     var d=el("div","note warn"); d.style.marginTop=".9rem";
